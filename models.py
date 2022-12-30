@@ -1,7 +1,7 @@
 import os
-from sqlalchemy import Column, String
+
 from flask_sqlalchemy import SQLAlchemy
-import json
+
 
 database_path = os.environ['DATABASE_URL']
 if database_path.startswith("postgres://"):
@@ -9,34 +9,86 @@ if database_path.startswith("postgres://"):
 
 db = SQLAlchemy()
 
+
 '''
 setup_db(app)
-    binds a flask application and a SQLAlchemy service
+
+binds a flask application and a SQLAlchemy service
 '''
 def setup_db(app, database_path=database_path):
     app.config["SQLALCHEMY_DATABASE_URI"] = database_path
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     db.app = app
     db.init_app(app)
+    return db
 
 
 '''
-Person
-Have title and release year
+Recipe
+
+A food recipe belongs to a user and contains
+a list of ingredients.
 '''
-class Person(db.Model):  
-  __tablename__ = 'People'
+class Recipe(db.Model):  
+    __tablename__ = 'recipe'
 
-  id = Column(db.Integer, primary_key=True)
-  name = Column(String)
-  catchphrase = Column(String)
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(128), nullable=False)
+    name = db.Column(db.String(128), nullable=False)
+    servings = db.Column(db.Integer, nullable=False)    
+    ingredients = db.relationship("Ingredient", backref="recipe")
 
-  def __init__(self, name, catchphrase=""):
-    self.name = name
-    self.catchphrase = catchphrase
+    def __repr__(self):
+        return f"<Recipe {self.id}: {self.name} ({self.username})>"
 
-  def format(self):
-    return {
-      'id': self.id,
-      'name': self.name,
-      'catchphrase': self.catchphrase}
+
+'''
+Ingredient
+
+Models a single ingredient for a food recipe.
+Since the amount is provided, it is possible to
+increase/decrease the recipe amounts.
+'''
+class Ingredient(db.Model):
+    __tablename__ = 'ingredient'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(128), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+
+    def __repr__(self):
+        return f"<Ingredient {self.id}: {self.amount} {self.name}>"
+
+
+'''
+Association table for implementing n-m 
+relationship between recipe and menu
+(a menu contains n recipes, a recipe may
+be used in m menus).
+'''
+menu_recipe_table = db.Table(
+    "menu_recipe_table",
+    db.Column('menu_id', db.Integer, db.ForeignKey('menu.id'), primary_key=True),
+    db.Column('recipe_id', db.Integer, db.ForeignKey('recipe.id'), primary_key=True),
+)
+
+
+'''
+Menu
+
+A menu consists of a series of dishes/recipes.
+'''
+class Menu(db.Model):
+    __tablename__ = 'menu'
+
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(128), nullable=False)
+    name = db.Column(db.String(128), nullable=False)
+    dishes = db.relationship(
+        "Recipe", 
+        secondary=menu_recipe_table,
+        backref=db.backref('menus', lazy=True)
+    )
+
+    def __repr__(self):
+        return f"<Menu {self.id}: {self.name} ({self.username})>"
