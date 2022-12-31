@@ -194,6 +194,11 @@ def delete_recipe(recipe_id):
         recipe = db.session.get(Recipe, recipe_id)
         if not recipe:
             err_not_found(f"Recipe {recipe_id} not found")
+        if recipe.menus:
+            err_forbidden(
+                f"Cannot delete recipe {recipe_id} "
+                "because it is used in menus"
+            )
         db.session.delete(recipe)
         db.session.commit()
         return success("msg", f"Recipe {recipe_id} deleted")
