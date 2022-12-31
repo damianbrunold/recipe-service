@@ -122,7 +122,7 @@ class RecipeTestCase(unittest.TestCase):
         self.assertEqual(data["success"], True)
         self.assertEqual(data["recipes"], [])
 
-    def test_get_recipe_list_empty_page_error(self):
+    def test_get_recipe_list_error_page_bounds(self):
         res = self.client().get("/recipe?page=2")
         data = res.get_json()
 
@@ -170,7 +170,7 @@ class RecipeTestCase(unittest.TestCase):
         self.assertEqual(data["success"], True)
         self.assertEqual(data["recipe"]["name"], "Simple Salad")
 
-    def test_get_recipe_not_found(self):
+    def test_get_recipe_error_not_found(self):
         res = self.client().get(f"/recipe/1")
         data = res.get_json()
 
@@ -187,13 +187,22 @@ class RecipeTestCase(unittest.TestCase):
             ],
             "preparation": "Spread butter on slice of bread. Serve",
         }
-        res = self.client().post(f"/recipe", json=recipe)
+        res = self.client().post("/recipe", json=recipe)
         data = res.get_json()
 
         self.assertEqual(res.status_code, 200)
         self.assertEqual(data["success"], True)
 
-    def test_add_recipe_missing_fields(self):
+        recipe_id = data["id"]
+        res = self.client().get(f"/recipe/{recipe_id}")
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(data["success"], True)
+        self.assertEqual(data["recipe"]["name"], "Test")
+
+
+    def test_add_recipe_error_missing_fields(self):
         recipe = {
             "name": "Test",
         }
@@ -220,6 +229,7 @@ class RecipeTestCase(unittest.TestCase):
 
         self.assertEqual(res.status_code, 200)
         self.assertEqual(data["success"], True)
+        self.assertEqual(data["id"], recipe_id)
 
         res = self.client().get(f"/recipe/{recipe_id}")
         data = res.get_json()
@@ -229,7 +239,7 @@ class RecipeTestCase(unittest.TestCase):
         self.assertEqual(data["recipe"]["name"], "Test Salad")
         self.assertEqual(data["recipe"]["servings"], 1)
 
-    def test_update_recipe_not_found(self):
+    def test_update_recipe_error_not_found(self):
         recipe = {
             "name": "Test Salad",
             "servings": 1,
@@ -253,6 +263,7 @@ class RecipeTestCase(unittest.TestCase):
 
         self.assertEqual(res.status_code, 200)
         self.assertEqual(data["success"], True)
+        self.assertEqual(data["id"], recipe_id)
 
         res = self.client().get(f"/recipe/{recipe_id}")
         data = res.get_json()
@@ -260,14 +271,14 @@ class RecipeTestCase(unittest.TestCase):
         self.assertEqual(res.status_code, 404)
         self.assertEqual(data["success"], False)
 
-    def test_delete_recipe_not_found(self):
+    def test_delete_recipe_error_not_found(self):
         res = self.client().delete(f"/recipe/1")
         data = res.get_json()
 
         self.assertEqual(res.status_code, 404)
         self.assertEqual(data["success"], False)
 
-    def test_delete_recipe_failure_included_in_menu(self):
+    def test_delete_recipe_error_included_in_menu(self):
         recipe = create_simple_salad()
         menu = Menu(
             name="Testmenu",
@@ -286,6 +297,192 @@ class RecipeTestCase(unittest.TestCase):
         data = res.get_json()
 
         self.assertEqual(res.status_code, 403)
+        self.assertEqual(data["success"], False)
+
+    def test_get_menu_list_empty(self):
+        res = self.client().get("/menu")
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(data["success"], True)
+        self.assertEqual(data["menus"], [])
+
+    def test_get_menu_list_error_page_bounds(self):
+        res = self.client().get("/menu?page=2")
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(data["success"], False)
+
+    def test_get_menu_list_one(self):
+        recipe = create_simple_salad()
+        menu = Menu(
+            name="Testmenu",
+            username="test@example.com",
+            dishes=[recipe],
+        )
+        with self.app.app_context():
+            self.db.session.add(recipe)
+            self.db.session.add(menu)
+            self.db.session.flush()
+            recipe_id = recipe.id
+            menu_id = menu.id
+            self.db.session.commit()
+
+        res = self.client().get("/menu")
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(data["success"], True)
+        self.assertEqual(len(data["menus"]), 1)
+
+    def test_get_menu(self):
+        recipe = create_simple_salad()
+        menu = Menu(
+            name="Testmenu",
+            username="test@example.com",
+            dishes=[recipe],
+        )
+        with self.app.app_context():
+            self.db.session.add(recipe)
+            self.db.session.add(menu)
+            self.db.session.flush()
+            recipe_id = recipe.id
+            menu_id = menu.id
+            self.db.session.commit()
+
+        res = self.client().get(f"/menu/{menu_id}")
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(data["success"], True)
+        self.assertEqual(data["menu"]["name"], "Testmenu")
+
+    def test_get_menu_error_not_found(self):
+        res = self.client().get(f"/menu/1")
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(data["success"], False)
+
+    def test_add_menu(self):
+        recipe = create_simple_salad()
+        with self.app.app_context():
+            self.db.session.add(recipe)
+            self.db.session.flush()
+            recipe_id = recipe.id
+            self.db.session.commit()
+
+        menu = {
+            "name": "Testmenu",
+            "dishes": [{"recipe_id": recipe_id}],
+        }
+        res = self.client().post("/menu", json=menu)
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(data["success"], True)
+
+        menu_id = data["id"]
+        res = self.client().get(f"/menu/{menu_id}")
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(data["success"], True)
+        self.assertEqual(data["menu"]["name"], "Testmenu")
+
+    def test_add_menu_error_missing_name(self):
+        recipe = create_simple_salad()
+        with self.app.app_context():
+            self.db.session.add(recipe)
+            self.db.session.flush()
+            recipe_id = recipe.id
+            self.db.session.commit()
+
+        menu = {
+            "dishes": [{"recipe_id": recipe_id}],
+        }
+        res = self.client().post(f"/menu", json=menu)
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 400)
+        self.assertEqual(data["success"], False)
+
+    def test_update_menu(self):
+        recipe = create_simple_salad()
+        menu = Menu(
+            name="Testmenu",
+            username="test@example.com",
+            dishes=[recipe],
+        )
+        with self.app.app_context():
+            self.db.session.add(recipe)
+            self.db.session.add(menu)
+            self.db.session.flush()
+            recipe_id = recipe.id
+            menu_id = menu.id
+            self.db.session.commit()
+
+        menu = {
+            "name": "Changed",
+        }
+        res = self.client().patch(f"/menu/{menu_id}", json=menu)
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(data["success"], True)
+        self.assertEqual(data["id"], menu_id)
+
+        res = self.client().get(f"/menu/{menu_id}")
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(data["success"], True)
+        self.assertEqual(data["menu"]["name"], "Changed")
+
+    def test_update_menu_error_not_found(self):
+        menu = {
+            "name": "Changed",
+        }
+        res = self.client().patch("/menu/1", json=menu)
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(data["success"], False)
+
+    def test_delete_menu(self):
+        recipe = create_simple_salad()
+        menu = Menu(
+            name="Testmenu",
+            username="test@example.com",
+            dishes=[recipe],
+        )
+        with self.app.app_context():
+            self.db.session.add(recipe)
+            self.db.session.add(menu)
+            self.db.session.flush()
+            recipe_id = recipe.id
+            menu_id = menu.id
+            self.db.session.commit()
+
+        res = self.client().delete(f"/menu/{menu_id}")
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(data["success"], True)
+        self.assertEqual(data["id"], menu_id)
+
+        res = self.client().get(f"/menu/{menu_id}")
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 404)
+        self.assertEqual(data["success"], False)
+
+    def test_delete_menu_error_not_found(self):
+        res = self.client().delete(f"/menu/1")
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 404)
         self.assertEqual(data["success"], False)
 
 

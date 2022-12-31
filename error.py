@@ -12,6 +12,10 @@ def success(key, payload):
     return (jsonify({"success": True, key: payload}), 200)
 
 
+def success2(key, payload, key2, payload2):
+    return (jsonify({"success": True, key: payload, key2: payload2}), 200)
+
+
 def failure(message):
     return (jsonify({"success": False, "message": message}), 200)
 

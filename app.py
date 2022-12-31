@@ -12,6 +12,7 @@ from werkzeug.exceptions import HTTPException
 
 from error import setup_error_handlers
 from error import success
+from error import success2
 from error import failure
 from error import err_bad_request
 from error import err_unauthorized
@@ -136,7 +137,10 @@ def add_recipe():
         db.session.flush()
         recipe_id = recipe.id
         db.session.commit()
-        return success("msg", f"Added recipe with id {recipe_id}") 
+        return success2(
+            "msg", f"Added recipe with id {recipe_id}",
+            "id", recipe_id,
+        ) 
     except HTTPException:
         raise
     except Exception:
@@ -179,7 +183,10 @@ def update_recipe(recipe_id):
         if "preparation" in data:
             recipe.preparation = data["preparation"]
         db.session.commit()
-        return success("msg", f"Updated recipe with id {recipe_id}")
+        return success2(
+            "msg", f"Updated recipe with id {recipe_id}",
+            "id", recipe_id,
+        )
     except HTTPException:
         raise
     except Exception:
@@ -201,7 +208,10 @@ def delete_recipe(recipe_id):
             )
         db.session.delete(recipe)
         db.session.commit()
-        return success("msg", f"Recipe {recipe_id} deleted")
+        return success2(
+            "msg", f"Recipe {recipe_id} deleted",
+            "id", recipe_id,
+        )
     except HTTPException:
         raise
     except Exception:
@@ -276,7 +286,10 @@ def add_menu():
         db.session.flush()
         menu_id = menu.id
         db.session.commit()
-        return success("msg", f"Added menu with id {menu_id}") 
+        return success2(
+            "msg", f"Added menu with id {menu_id}",
+            "id", menu_id,
+        )
     except HTTPException:
         raise
     except Exception:
@@ -305,7 +318,10 @@ def update_menu(menu_id):
                     err_bad_request(f"Recipe {recipe_id} in dish {idx} not found")
                 menu.dishes.append(recipe)
         db.session.commit()
-        return success("msg", f"Updated menu with id {menu_id}") 
+        return success2(
+            "msg", f"Updated menu with id {menu_id}",
+            "id", menu_id,
+        )
     except HTTPException:
         raise
     except Exception:
@@ -322,7 +338,10 @@ def delete_menu(menu_id):
             err_not_found(f"Menu {menu_id} not found")
         db.session.delete(menu)
         db.session.commit()
-        return success("msg", f"Menu {menu_id} deleted")
+        return success2(
+            "msg", f"Menu {menu_id} deleted",
+            "id", menu_id,
+        )
     except HTTPException:
         raise
     except Exception:
