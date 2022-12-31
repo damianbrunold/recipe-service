@@ -485,6 +485,34 @@ class RecipeTestCase(unittest.TestCase):
         self.assertEqual(res.status_code, 404)
         self.assertEqual(data["success"], False)
 
+    def test_delete_menu_recipe_retained(self):
+        recipe = create_simple_salad()
+        menu = Menu(
+            name="Testmenu",
+            username="test@example.com",
+            dishes=[recipe],
+        )
+        with self.app.app_context():
+            self.db.session.add(recipe)
+            self.db.session.add(menu)
+            self.db.session.flush()
+            recipe_id = recipe.id
+            menu_id = menu.id
+            self.db.session.commit()
+
+        res = self.client().delete(f"/menu/{menu_id}")
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(data["success"], True)
+        self.assertEqual(data["id"], menu_id)
+
+        res = self.client().get(f"/recipe/{recipe_id}")
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(data["success"], True)
+
 
 if __name__ == "__main__":
     unittest.main()
