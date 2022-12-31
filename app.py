@@ -131,7 +131,6 @@ def add_recipe():
                 name=ingredient["name"],
                 amount=ingredient["amount"],
             )
-            db.session.add(new_ingredient)
             recipe.ingredients.append(new_ingredient)            
         db.session.add(recipe)
         db.session.flush()
@@ -148,7 +147,45 @@ def add_recipe():
 
 @app.route('/recipe/<int:recipe_id>', methods=("PATCH",))
 def update_recipe(recipe_id):
-    return "hi there"
+    data = request.get_json()
+    try:
+        recipe = db.session.get(Recipe, recipe_id)
+        if not recipe:
+            err_not_found(f"Recipe {recipe_id} not found")
+        if "name" in data:
+            recipe.name = data["name"]
+        if "servings" in data:
+            if not isinstance(data["servings"], int):
+                err_bad_request("Field 'servings' is not an integer")
+            recipe.servings = data["servings"]
+        if "ingredients" in data:
+            new_ingredients = data["ingredients"]
+            recipe.ingredients.clear()
+            for idx, ingredient in enumerate(data["ingredients"]):
+                if "amount" not in ingredient:
+                    err_bad_request(f"Field 'amount' is missing in ingredient {idx}")
+                if "name" not in ingredient:
+                    err_bad_request(f"Field 'name' is missing in ingredient {idx}")
+                if (
+                    not isinstance(ingredient["amount"], int)
+                    and not isinstance(ingredient["amount"], float)
+                ):
+                    err_bad_request(f"Field 'amount' is not numerical in ingredient {idx}")
+                new_ingredient = Ingredient(
+                    name=ingredient["name"],
+                    amount=ingredient["amount"],
+                )
+                recipe.ingredients.append(new_ingredient)
+        if "preparation" in data:
+            recipe.preparation = data["preparation"]
+        db.session.commit()
+        return success("msg", f"Updated recipe with id {recipe_id}")
+    except HTTPException:
+        raise
+    except Exception:
+        msg = f"Cannot update recipe {recipe_id}"
+        logging.exception(msg)
+        err_server_error(msg)
 
 
 @app.route('/recipe/<int:recipe_id>', methods=("DELETE",))
@@ -245,7 +282,31 @@ def add_menu():
 
 @app.route('/menu/<int:menu_id>', methods=("PATCH",))
 def update_menu(menu_id):
-    return "hi there"
+    data = request.get_json()
+    try:
+        menu = db.session.get(Menu, menu_id)
+        if not menu:
+            err_not_found(f"Menu {menu_id} not found")
+        if "name" in data:
+            menu.name = data["name"]
+        if "dishes" in data:
+            menu.dishes.clear()
+            for idx, dish in enumerate(data["dishes"]):
+                if "recipe_id" not in dish:
+                    err_bad_request(f"Field 'recipe_id' is missing in dish {idx}")
+                recipe_id = dish["recipe_id"]
+                recipe = db.session.get(Recipe, recipe_id)
+                if not recipe:
+                    err_bad_request(f"Recipe {recipe_id} in dish {idx} not found")
+                menu.dishes.append(recipe)
+        db.session.commit()
+        return success("msg", f"Updated menu with id {menu_id}") 
+    except HTTPException:
+        raise
+    except Exception:
+        msg = f"Cannot update menu {menu_id}"
+        logging.exception(msg)
+        err_server_error(msg)
 
 
 @app.route('/menu/<int:menu_id>', methods=("DELETE",))

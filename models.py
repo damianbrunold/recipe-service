@@ -38,6 +38,12 @@ class Recipe(db.Model):
     servings = db.Column(db.Integer, nullable=False)
     preparation = db.Column(db.String())
 
+    ingredients = db.relationship(
+        "Ingredient",
+        cascade="all, delete-orphan",
+        backref="recipe"
+    )
+
     def __repr__(self):
         return f"<Recipe {self.id}: {self.name} ({self.username})>"
 
@@ -78,8 +84,6 @@ class Ingredient(db.Model):
     amount = db.Column(db.Float, nullable=False)
     recipe_id = db.Column(db.Integer, db.ForeignKey("recipe.id"))
 
-    recipe = db.relationship("Recipe", backref="ingredients")
-
     def __repr__(self):
         return f"<Ingredient {self.id}: {self.amount} {self.name}>"
 
@@ -117,7 +121,7 @@ class Menu(db.Model):
     dishes = db.relationship(
         "Recipe", 
         secondary=menu_recipe_table,
-        backref=db.backref('menus', lazy=True)
+        backref=db.backref('menus', lazy=True),
     )
 
     def __repr__(self):
