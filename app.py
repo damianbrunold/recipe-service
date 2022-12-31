@@ -28,13 +28,13 @@ from models import Menu
 
 load_dotenv()
 
+PAGE_SIZE = 10
+
 app = Flask(__name__)
 db = setup_db(app)
 setup_error_handlers(app)
 CORS(app)
 Migrate(app, db)
-
-PAGE_SIZE = 10
 
 
 def get_page():

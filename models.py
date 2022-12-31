@@ -2,21 +2,30 @@ import os
 
 from flask_sqlalchemy import SQLAlchemy
 
-
-database_path = os.environ['DATABASE_URL']
-if database_path.startswith("postgres://"):
-  database_path = database_path.replace("postgres://", "postgresql://", 1)
-
 db = SQLAlchemy()
 
 
 '''
 setup_db(app)
 
-binds a flask application and a SQLAlchemy service
+binds a flask application and a SQLAlchemy service.
+
+If test is True, then a local test database is used
 '''
-def setup_db(app, database_path=database_path):
-    app.config["SQLALCHEMY_DATABASE_URI"] = database_path
+def setup_db(app):
+    test = os.environ.get("TEST", "")
+    if test == "true":
+        dbfile = "test-database.db"
+        path = os.path.join(app.instance_path, dbfile)
+        if os.path.exists(path):
+            os.remove(path)
+        database_path = "sqlite:///" + dbfile
+        app.config["SQLALCHEMY_DATABASE_URI"] = database_path
+    else:
+        database_path = os.environ["DATABASE_URL"]
+        if database_path.startswith("postgres://"):
+            database_path = database_path.replace("postgres://", "postgresql://", 1)
+        app.config["SQLALCHEMY_DATABASE_URI"] = database_path
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     db.app = app
     db.init_app(app)
