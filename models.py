@@ -26,8 +26,8 @@ def setup_db(app, database_path=database_path):
 '''
 Recipe
 
-A food recipe belongs to a user and contains
-a list of ingredients.
+A food recipe contains a list of ingredients and
+preparation instructions.
 '''
 class Recipe(db.Model):  
     __tablename__ = 'recipe'
@@ -35,11 +35,32 @@ class Recipe(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(128), nullable=False)
     name = db.Column(db.String(128), nullable=False)
-    servings = db.Column(db.Integer, nullable=False)    
-    ingredients = db.relationship("Ingredient", backref="recipe")
+    servings = db.Column(db.Integer, nullable=False)
+    preparation = db.Column(db.String())
 
     def __repr__(self):
         return f"<Recipe {self.id}: {self.name} ({self.username})>"
+
+    def json_short(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "username": self.username,
+        }
+
+    def json(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "username": self.username,
+            "servings": self.servings,
+            "ingredients": [
+                ingredient.json()
+                for ingredient
+                in self.ingredients
+            ],
+            "preparation": self.preparation,
+        }
 
 
 '''
@@ -55,9 +76,18 @@ class Ingredient(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(128), nullable=False)
     amount = db.Column(db.Float, nullable=False)
+    recipe_id = db.Column(db.Integer, db.ForeignKey("recipe.id"))
+
+    recipe = db.relationship("Recipe", backref="ingredients")
 
     def __repr__(self):
         return f"<Ingredient {self.id}: {self.amount} {self.name}>"
+
+    def json(self):
+        return {
+            "name": self.name,
+            "amount": self.amount,
+        }
 
 
 '''
@@ -92,3 +122,23 @@ class Menu(db.Model):
 
     def __repr__(self):
         return f"<Menu {self.id}: {self.name} ({self.username})>"
+
+    def json_short(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "username": self.username,
+        }
+
+    def json(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "username": self.username,
+            "number_of_dishes": len(self.dishes),
+            "dishes": [
+                recipe.json_short()
+                for recipe
+                in self.dishes
+            ],
+        }
