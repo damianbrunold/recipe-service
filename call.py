@@ -4,6 +4,19 @@ import sys
 
 import requests
 
+# This file provides a command line tool for using the
+# recipe API. You can use a set of profiles and for
+# each profile configure a jwt token. Then, you can
+# exercise the API (e.g. adding recipes).
+#
+# The jwt token can be aquired by visiting http://localhost:5000/connect
+# which performs an authorize call against Auth0 and returns
+# the jwt token.
+#
+# If you call 'python call.py' without any arguments,
+# the available commands are printed.
+
+
 config = {"current-profile": "default", "profiles": {"default": {}}}
 profile = config["profiles"][config["current-profile"]]
 
@@ -43,11 +56,12 @@ def configure():
 
 def set_profile():
     new_profile = input(f"Enter profile name ({config['current-profile']}): ")
-    config["current-profile"] = new_profile
-    if new_profile not in config["profiles"]:
-        config["profiles"][new_profile] = {}
-    with open(".call-config", "w") as outfile:
-        outfile.write(json.dumps(config, indent=2))
+    if new_profile:
+        config["current-profile"] = new_profile
+        if new_profile not in config["profiles"]:
+            config["profiles"][new_profile] = {}
+        with open(".call-config", "w") as outfile:
+            outfile.write(json.dumps(config, indent=2))
 
 
 if __name__ == "__main__":
