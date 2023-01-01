@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Recipe API - Token</title>
+</head>
+<body>
+    <h1>Recipe API - Token</h1>
+
+    <textarea id="token"></textarea>
+
+    <p><a href="{{ url_for('ui_connect') }}">Back to connect</a></p>
+
+    <script>
+        let data = location.hash;
+        data = data.substring(data.indexOf("=")+1, data.indexOf("&"));
+        document.getElementById("token").innerText = data;
+    </script>
+
+    <style>
+        #token {
+            display: block;
+            width: 50rem;
+            height: 25rem;
+            white-space: wrap;
+        }
+    </style>
+</body>
+</html>

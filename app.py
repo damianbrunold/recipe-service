@@ -7,6 +7,8 @@ from flask import abort
 from flask import g
 from flask import jsonify
 from flask import request
+from flask import render_template
+from flask import url_for
 from flask_cors import CORS
 from flask_migrate import Migrate
 from werkzeug.exceptions import HTTPException
@@ -30,6 +32,8 @@ from models import Menu
 
 from auth import requires_auth
 from auth import has_permission
+from auth import AUTH0_DOMAIN
+from auth import API_AUDIENCE
 
 load_dotenv()
 
@@ -366,6 +370,36 @@ def delete_menu(menu_id):
         msg = f"Cannot delete the menu {menu_id}"
         logging.exception(msg)
         err_server_error(msg)
+
+
+# The following two routes are not formally part of the API.
+# Instead, they provide a very simple GUI for logging in
+# using Auth0 and retrieving the JWT token required for accessing
+# the API.
+
+@app.route("/connect")
+def ui_connect():
+    client_id = os.environ["AUTH0_CLIENT_ID"]
+    redirect_url = url_for('ui_token', _external=True)
+    redirect_url = redirect_url.replace("localhost", "127.0.0.1")
+    authorize_url = (
+        f"https://{AUTH0_DOMAIN}/authorize"
+        f"?audience={API_AUDIENCE}"
+        f"&response_type=token"
+        f"&client_id={client_id}"
+        f"&redirect_uri={redirect_url}"
+    )
+    logout_url = f"https://{AUTH0_DOMAIN}/logout"
+    return render_template(
+        "connect.html",
+        auth0_authorize_url=authorize_url,
+        auth0_logout_url=logout_url,
+    )
+
+
+@app.route("/token")
+def ui_token():
+    return render_template("token.html")
 
 
 if __name__ == '__main__':
