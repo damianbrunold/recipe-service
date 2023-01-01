@@ -47,6 +47,9 @@ Migrate(app, db)
 
 
 def get_page():
+    """
+    Returns the page number and start and end indices.
+    """
     page = request.args.get("page", 1, type=int)
     start = (page - 1) * PAGE_SIZE
     end = start + PAGE_SIZE
@@ -54,10 +57,16 @@ def get_page():
 
 
 def get_total_pages(total_items):
+    """
+    Returns the total number of pages.
+    """
     return (total_items + PAGE_SIZE - 1) // PAGE_SIZE
 
 
 def check_page(start, total_items):
+    """
+    Check whether the requested page is out of bounds.
+    """
     if total_items == 0:
         if start > 0:
             err_bad_request("Page set beyond end of list")
@@ -68,6 +77,11 @@ def check_page(start, total_items):
 
 @app.route("/recipe")
 def get_recipe_list():
+    """
+    Returns the paged list of recipes.
+
+    This endpoint is public, thus does not require authentication.
+    """
     try:
         page, start, end = get_page()
         recipes = Recipe.query.order_by(Recipe.name).all()
@@ -92,6 +106,11 @@ def get_recipe_list():
 
 @app.route("/recipe/<int:recipe_id>")
 def get_recipe(recipe_id):
+    """
+    Returns a specific recipe given by its recipe_id.
+
+    This endpoint is public, thus does not require authentication.
+    """
     try:
         recipe = db.session.get(Recipe, recipe_id)
         if not recipe:
@@ -111,6 +130,9 @@ def get_recipe(recipe_id):
 @app.route("/recipe", methods=("POST",))
 @requires_auth("add:recipe")
 def add_recipe():
+    """
+    Adds a recipe to the database.
+    """
     data = request.get_json()
     try:
         if "name" not in data:
@@ -161,6 +183,12 @@ def add_recipe():
 @app.route("/recipe/<int:recipe_id>", methods=("PATCH",))
 @requires_auth("update:recipe")
 def update_recipe(recipe_id):
+    """
+    Updates an existing recipe identified by its recipe_id.
+
+    This only works if the same user created the recipe, or
+    if the current user has administrative privileges.
+    """
     data = request.get_json()
     try:
         recipe = db.session.get(Recipe, recipe_id)
@@ -210,6 +238,12 @@ def update_recipe(recipe_id):
 @app.route("/recipe/<int:recipe_id>", methods=("DELETE",))
 @requires_auth("delete:recipe")
 def delete_recipe(recipe_id):
+    """
+    Deletes a recipe given by its recipe_id.
+
+    This only works if the same user created the recipe,
+    or if the current user has administrative privileges.
+    """
     try:
         recipe = db.session.get(Recipe, recipe_id)
         if not recipe:
@@ -237,6 +271,11 @@ def delete_recipe(recipe_id):
 
 @app.route("/menu")
 def get_menu_list():
+    """
+    Returns the paged list of menus.
+
+    This endpoint is public, thus does not require authentication.
+    """
     try:
         page, start, end = get_page()
         menus = Menu.query.order_by(Menu.name).all()
@@ -261,6 +300,11 @@ def get_menu_list():
 
 @app.route("/menu/<int:menu_id>")
 def get_menu(menu_id):
+    """
+    Return a specific menu given by the menu_id.
+
+    This endpoint is public, thus does not require authentication.
+    """
     try:
         menu = db.session.get(Menu, menu_id)
         if not menu:
@@ -280,6 +324,9 @@ def get_menu(menu_id):
 @app.route("/menu", methods=("POST",))
 @requires_auth("add:menu")
 def add_menu():
+    """
+    Adds a new menu to the database.
+    """
     data = request.get_json()
     try:
         if "name" not in data:
@@ -317,6 +364,12 @@ def add_menu():
 @app.route("/menu/<int:menu_id>", methods=("PATCH",))
 @requires_auth("update:menu")
 def update_menu(menu_id):
+    """
+    Updates a menu identified by its menu_id.
+
+    This only works if the same user created the menu
+    or if the current user has administrative privileges.
+    """
     data = request.get_json()
     try:
         menu = db.session.get(Menu, menu_id)
@@ -352,6 +405,12 @@ def update_menu(menu_id):
 @app.route("/menu/<int:menu_id>", methods=("DELETE",))
 @requires_auth("delete:menu")
 def delete_menu(menu_id):
+    """
+    Deletes a menu identified by its menu_id.
+
+    This only works if the same user created the menu
+    or if the current user has administrative privileges.
+    """
     try:
         menu = db.session.get(Menu, menu_id)
         if not menu:
