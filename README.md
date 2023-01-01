@@ -53,7 +53,13 @@ export FLASK_DEBUG=true
 flask db upgrade
 ```
 
-8. Run the flask application
+8. Run the unit tests
+
+```
+python test.py
+```
+
+9. Run the flask application
 
 ```
 flask run
