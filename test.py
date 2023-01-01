@@ -2,6 +2,7 @@ import os
 import unittest
 
 from flask import Flask
+import jwt
 
 os.environ["TEST"] = "true"
 
@@ -10,6 +11,63 @@ from app import db
 from models import Recipe
 from models import Ingredient
 from models import Menu
+from auth import requires_auth
+
+
+def create_token(payload):
+    return jwt.encode(payload, key="test")
+
+
+def create_token_recipe_user():
+    return create_token({
+        "user-email": "recipe@recipe.dabr.ch",
+        "permissions": [
+            "add:recipe",
+            "delete:recipe",
+            "update:recipe",
+        ],
+    })
+
+
+def create_token_menu_user():
+    return create_token({
+        "user-email": "menu@recipe.dabr.ch",
+        "permissions": [
+            "add:menu",
+            "delete:menu",
+            "update:menu",
+        ],
+    })
+
+
+def create_token_admin_user():
+    return create_token({
+        "user-email": "admin@recipe.dabr.ch",
+        "permissions": [
+            "add:recipe",
+            "delete:recipe",
+            "delete:any-recipe",
+            "update:recipe",
+            "update:any-recipe",
+            "add:menu",
+            "delete:menu",
+            "delete:any-menu",
+            "update:menu",
+            "update:any-menu",
+        ],
+    })
+
+
+def get_headers_recipe_user():
+    return {"Authorization": "Bearer " + create_token_recipe_user()}
+
+
+def get_headers_menu_user():
+    return {"Authorization": "Bearer " + create_token_menu_user()}
+
+
+def get_headers_admin_user():
+    return {"Authorization": "Bearer " + create_token_admin_user()}
 
 
 def create_recipe(spec):
@@ -40,7 +98,7 @@ def create_recipe(spec):
 def create_simple_salad():
     return create_recipe("""
     Simple Salad
-    test@example.com
+    recipe@recipe.dabr.ch
     4 servings
 
     1 lettuce
@@ -62,7 +120,7 @@ def create_simple_salad():
 def create_spaghetti_with_tomato_sauce():
     return create_recipe("""
     Spaghetti with tomato sauce
-    test@example.com
+    recipe@recipe.dabr.ch
     4 servings
 
     500 gramms of spaghetti
@@ -187,7 +245,11 @@ class RecipeTestCase(unittest.TestCase):
             ],
             "preparation": "Spread butter on slice of bread. Serve",
         }
-        res = self.client().post("/recipe", json=recipe)
+        res = self.client().post(
+            "/recipe",
+            json=recipe,
+            headers=get_headers_recipe_user(),
+        )
         data = res.get_json()
 
         self.assertEqual(res.status_code, 200)
@@ -201,12 +263,54 @@ class RecipeTestCase(unittest.TestCase):
         self.assertEqual(data["success"], True)
         self.assertEqual(data["recipe"]["name"], "Test")
 
+    def test_add_recipe_error_no_authorization_header(self):
+        recipe = {
+            "name": "Test",
+            "servings": 1,
+            "ingredients": [
+                {"name": "slice of bread", "amount": 1},
+                {"name": "bit of butter", "amount": 1},
+            ],
+            "preparation": "Spread butter on slice of bread. Serve",
+        }
+        res = self.client().post(
+            "/recipe",
+            json=recipe,
+        )
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(data["success"], False)
+
+    def test_add_recipe_error_no_permission(self):
+        recipe = {
+            "name": "Test",
+            "servings": 1,
+            "ingredients": [
+                {"name": "slice of bread", "amount": 1},
+                {"name": "bit of butter", "amount": 1},
+            ],
+            "preparation": "Spread butter on slice of bread. Serve",
+        }
+        res = self.client().post(
+            "/recipe",
+            json=recipe,
+            headers=get_headers_menu_user(),
+        )
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(data["success"], False)
 
     def test_add_recipe_error_missing_fields(self):
         recipe = {
             "name": "Test",
         }
-        res = self.client().post(f"/recipe", json=recipe)
+        res = self.client().post(
+            "/recipe",
+            json=recipe,
+            headers=get_headers_recipe_user(),
+        )
         data = res.get_json()
 
         self.assertEqual(res.status_code, 400)
@@ -224,7 +328,11 @@ class RecipeTestCase(unittest.TestCase):
             "name": "Test Salad",
             "servings": 1,
         }
-        res = self.client().patch(f"/recipe/{recipe_id}", json=recipe)
+        res = self.client().patch(
+            f"/recipe/{recipe_id}",
+            json=recipe,
+            headers=get_headers_recipe_user(),
+        )
         data = res.get_json()
 
         self.assertEqual(res.status_code, 200)
@@ -239,12 +347,62 @@ class RecipeTestCase(unittest.TestCase):
         self.assertEqual(data["recipe"]["name"], "Test Salad")
         self.assertEqual(data["recipe"]["servings"], 1)
 
+    def test_update_recipe_error_wrong_user(self):
+        recipe = create_simple_salad()
+        recipe.username = "test@recipe.dabr.ch"
+        with self.app.app_context():
+            self.db.session.add(recipe)
+            self.db.session.flush()
+            recipe_id = recipe.id
+            self.db.session.commit()
+
+        recipe = {
+            "name": "Test Salad",
+            "servings": 1,
+        }
+        res = self.client().patch(
+            f"/recipe/{recipe_id}",
+            json=recipe,
+            headers=get_headers_recipe_user(),
+        )
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(data["success"], False)
+
+    def test_update_recipe_wrong_user_but_admin(self):
+        recipe = create_simple_salad()
+        recipe.username = "test@recipe.dabr.ch"
+        with self.app.app_context():
+            self.db.session.add(recipe)
+            self.db.session.flush()
+            recipe_id = recipe.id
+            self.db.session.commit()
+
+        recipe = {
+            "name": "Test Salad",
+            "servings": 1,
+        }
+        res = self.client().patch(
+            f"/recipe/{recipe_id}",
+            json=recipe,
+            headers=get_headers_admin_user(),
+        )
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(data["success"], True)
+
     def test_update_recipe_error_not_found(self):
         recipe = {
             "name": "Test Salad",
             "servings": 1,
         }
-        res = self.client().patch(f"/recipe/1", json=recipe)
+        res = self.client().patch(
+            "/recipe/1",
+            json=recipe,
+            headers=get_headers_recipe_user(),
+        )
         data = res.get_json()
 
         self.assertEqual(res.status_code, 404)
@@ -258,7 +416,10 @@ class RecipeTestCase(unittest.TestCase):
             recipe_id = recipe.id
             self.db.session.commit()
 
-        res = self.client().delete(f"/recipe/{recipe_id}")
+        res = self.client().delete(
+            f"/recipe/{recipe_id}",
+            headers=get_headers_recipe_user(),
+        )
         data = res.get_json()
 
         self.assertEqual(res.status_code, 200)
@@ -272,7 +433,10 @@ class RecipeTestCase(unittest.TestCase):
         self.assertEqual(data["success"], False)
 
     def test_delete_recipe_error_not_found(self):
-        res = self.client().delete(f"/recipe/1")
+        res = self.client().delete(
+            "/recipe/1",
+            headers=get_headers_recipe_user(),
+        )
         data = res.get_json()
 
         self.assertEqual(res.status_code, 404)
@@ -282,7 +446,7 @@ class RecipeTestCase(unittest.TestCase):
         recipe = create_simple_salad()
         menu = Menu(
             name="Testmenu",
-            username="test@example.com",
+            username="menu@recipe.dabr.ch",
             dishes=[recipe],
         )
         with self.app.app_context():
@@ -293,11 +457,66 @@ class RecipeTestCase(unittest.TestCase):
             menu_id = menu.id
             self.db.session.commit()
 
-        res = self.client().delete(f"/recipe/{recipe_id}")
+        res = self.client().delete(
+            f"/recipe/{recipe_id}",
+            headers=get_headers_recipe_user(),
+        )
         data = res.get_json()
 
         self.assertEqual(res.status_code, 403)
         self.assertEqual(data["success"], False)
+
+    def test_delete_recipe_error_wrong_user(self):
+        recipe = create_simple_salad()
+        recipe.username = "test@recipe.dabr.ch"
+        with self.app.app_context():
+            self.db.session.add(recipe)
+            self.db.session.flush()
+            recipe_id = recipe.id
+            self.db.session.commit()
+
+        res = self.client().delete(
+            f"/recipe/{recipe_id}",
+            headers=get_headers_recipe_user(),
+        )
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(data["success"], False)
+
+    def test_delete_recipe_error_no_permission(self):
+        recipe = create_simple_salad()
+        with self.app.app_context():
+            self.db.session.add(recipe)
+            self.db.session.flush()
+            recipe_id = recipe.id
+            self.db.session.commit()
+
+        res = self.client().delete(
+            f"/recipe/{recipe_id}",
+            headers=get_headers_menu_user(),
+        )
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(data["success"], False)
+
+    def test_delete_recipe_wrong_user_but_admin(self):
+        recipe = create_simple_salad()
+        with self.app.app_context():
+            self.db.session.add(recipe)
+            self.db.session.flush()
+            recipe_id = recipe.id
+            self.db.session.commit()
+
+        res = self.client().delete(
+            f"/recipe/{recipe_id}",
+            headers=get_headers_admin_user(),
+        )
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(data["success"], True)
 
     def test_get_menu_list_empty(self):
         res = self.client().get("/menu")
@@ -318,7 +537,7 @@ class RecipeTestCase(unittest.TestCase):
         recipe = create_simple_salad()
         menu = Menu(
             name="Testmenu",
-            username="test@example.com",
+            username="menu@recipe.dabr.ch",
             dishes=[recipe],
         )
         with self.app.app_context():
@@ -340,7 +559,7 @@ class RecipeTestCase(unittest.TestCase):
         recipe = create_simple_salad()
         menu = Menu(
             name="Testmenu",
-            username="test@example.com",
+            username="menu@recipe.dabr.ch",
             dishes=[recipe],
         )
         with self.app.app_context():
@@ -377,7 +596,11 @@ class RecipeTestCase(unittest.TestCase):
             "name": "Testmenu",
             "dishes": [{"recipe_id": recipe_id}],
         }
-        res = self.client().post("/menu", json=menu)
+        res = self.client().post(
+            "/menu",
+            json=menu,
+            headers=get_headers_menu_user(),
+        )
         data = res.get_json()
 
         self.assertEqual(res.status_code, 200)
@@ -402,17 +625,50 @@ class RecipeTestCase(unittest.TestCase):
         menu = {
             "dishes": [{"recipe_id": recipe_id}],
         }
-        res = self.client().post(f"/menu", json=menu)
+        res = self.client().post(
+            "/menu",
+            json=menu,
+            headers=get_headers_menu_user(),
+        )
         data = res.get_json()
 
         self.assertEqual(res.status_code, 400)
+        self.assertEqual(data["success"], False)
+
+    def test_add_menu_error_missing_authorization_header(self):
+        menu = {
+            "name": "Testmenu",
+            "dishes": [{"recipe_id": 1}],
+        }
+        res = self.client().post(
+            "/menu",
+            json=menu,
+        )
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(data["success"], False)
+
+    def test_add_menu_error_no_permission(self):
+        menu = {
+            "name": "Testmenu",
+            "dishes": [{"recipe_id": 1}],
+        }
+        res = self.client().post(
+            "/menu",
+            json=menu,
+            headers=get_headers_recipe_user(),
+        )
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 403)
         self.assertEqual(data["success"], False)
 
     def test_update_menu(self):
         recipe = create_simple_salad()
         menu = Menu(
             name="Testmenu",
-            username="test@example.com",
+            username="menu@recipe.dabr.ch",
             dishes=[recipe],
         )
         with self.app.app_context():
@@ -426,7 +682,11 @@ class RecipeTestCase(unittest.TestCase):
         menu = {
             "name": "Changed",
         }
-        res = self.client().patch(f"/menu/{menu_id}", json=menu)
+        res = self.client().patch(
+            f"/menu/{menu_id}",
+            json=menu,
+            headers=get_headers_menu_user(),
+        )
         data = res.get_json()
 
         self.assertEqual(res.status_code, 200)
@@ -444,17 +704,48 @@ class RecipeTestCase(unittest.TestCase):
         menu = {
             "name": "Changed",
         }
-        res = self.client().patch("/menu/1", json=menu)
+        res = self.client().patch(
+            "/menu/1",
+            json=menu,
+            headers=get_headers_menu_user(),
+        )
         data = res.get_json()
 
         self.assertEqual(res.status_code, 404)
         self.assertEqual(data["success"], False)
 
-    def test_delete_menu(self):
+    def test_update_menu_error_missing_authorization_header(self):
+        menu = {
+            "name": "Changed",
+        }
+        res = self.client().patch(
+            "/menu/1",
+            json=menu,
+        )
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(data["success"], False)
+
+    def test_update_menu_error_no_permission(self):
+        menu = {
+            "name": "Changed",
+        }
+        res = self.client().patch(
+            "/menu/1",
+            json=menu,
+            headers=get_headers_recipe_user(),
+        )
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(data["success"], False)
+
+    def test_update_menu_error_wrong_user(self):
         recipe = create_simple_salad()
         menu = Menu(
             name="Testmenu",
-            username="test@example.com",
+            username="test@recipe.dabr.ch",
             dishes=[recipe],
         )
         with self.app.app_context():
@@ -465,7 +756,66 @@ class RecipeTestCase(unittest.TestCase):
             menu_id = menu.id
             self.db.session.commit()
 
-        res = self.client().delete(f"/menu/{menu_id}")
+        menu = {
+            "name": "Changed",
+        }
+        res = self.client().patch(
+            f"/menu/{menu_id}",
+            json=menu,
+            headers=get_headers_menu_user(),
+        )
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(data["success"], False)
+
+    def test_update_menu_wrong_user_but_admin(self):
+        recipe = create_simple_salad()
+        menu = Menu(
+            name="Testmenu",
+            username="test@recipe.dabr.ch",
+            dishes=[recipe],
+        )
+        with self.app.app_context():
+            self.db.session.add(recipe)
+            self.db.session.add(menu)
+            self.db.session.flush()
+            recipe_id = recipe.id
+            menu_id = menu.id
+            self.db.session.commit()
+
+        menu = {
+            "name": "Changed",
+        }
+        res = self.client().patch(
+            f"/menu/{menu_id}",
+            json=menu,
+            headers=get_headers_admin_user(),
+        )
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(data["success"], True)
+        
+    def test_delete_menu(self):
+        recipe = create_simple_salad()
+        menu = Menu(
+            name="Testmenu",
+            username="menu@recipe.dabr.ch",
+            dishes=[recipe],
+        )
+        with self.app.app_context():
+            self.db.session.add(recipe)
+            self.db.session.add(menu)
+            self.db.session.flush()
+            recipe_id = recipe.id
+            menu_id = menu.id
+            self.db.session.commit()
+
+        res = self.client().delete(
+            f"/menu/{menu_id}",
+            headers=get_headers_menu_user(),
+        )
         data = res.get_json()
 
         self.assertEqual(res.status_code, 200)
@@ -479,17 +829,39 @@ class RecipeTestCase(unittest.TestCase):
         self.assertEqual(data["success"], False)
 
     def test_delete_menu_error_not_found(self):
-        res = self.client().delete(f"/menu/1")
+        res = self.client().delete(
+            "/menu/1",
+            headers=get_headers_menu_user(),
+        )
         data = res.get_json()
 
         self.assertEqual(res.status_code, 404)
         self.assertEqual(data["success"], False)
 
-    def test_delete_menu_recipe_retained(self):
+    def test_delete_menu_error_missing_authorization_header(self):
+        res = self.client().delete(
+            "/menu/1",
+        )
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 401)
+        self.assertEqual(data["success"], False)
+
+    def test_delete_menu_error_no_permission(self):
+        res = self.client().delete(
+            "/menu/1",
+            headers=get_headers_recipe_user(),
+        )
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(data["success"], False)
+
+    def test_delete_menu_error_wrong_user(self):
         recipe = create_simple_salad()
         menu = Menu(
             name="Testmenu",
-            username="test@example.com",
+            username="test@recipe.dabr.ch",
             dishes=[recipe],
         )
         with self.app.app_context():
@@ -500,7 +872,58 @@ class RecipeTestCase(unittest.TestCase):
             menu_id = menu.id
             self.db.session.commit()
 
-        res = self.client().delete(f"/menu/{menu_id}")
+        res = self.client().delete(
+            f"/menu/{menu_id}",
+            headers=get_headers_menu_user(),
+        )
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 403)
+        self.assertEqual(data["success"], False)
+        
+    def test_delete_menu_wrong_user_but_admin(self):
+        recipe = create_simple_salad()
+        menu = Menu(
+            name="Testmenu",
+            username="test@recipe.dabr.ch",
+            dishes=[recipe],
+        )
+        with self.app.app_context():
+            self.db.session.add(recipe)
+            self.db.session.add(menu)
+            self.db.session.flush()
+            recipe_id = recipe.id
+            menu_id = menu.id
+            self.db.session.commit()
+
+        res = self.client().delete(
+            f"/menu/{menu_id}",
+            headers=get_headers_admin_user(),
+        )
+        data = res.get_json()
+
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(data["success"], True)
+        
+    def test_delete_menu_recipe_retained(self):
+        recipe = create_simple_salad()
+        menu = Menu(
+            name="Testmenu",
+            username="menu@recipe.dabr.ch",
+            dishes=[recipe],
+        )
+        with self.app.app_context():
+            self.db.session.add(recipe)
+            self.db.session.add(menu)
+            self.db.session.flush()
+            recipe_id = recipe.id
+            menu_id = menu.id
+            self.db.session.commit()
+
+        res = self.client().delete(
+            f"/menu/{menu_id}",
+            headers=get_headers_menu_user(),
+        )
         data = res.get_json()
 
         self.assertEqual(res.status_code, 200)

@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 from flask import Flask
 from flask import abort
+from flask import g
 from flask import jsonify
 from flask import request
 from flask_cors import CORS
@@ -26,6 +27,9 @@ from models import setup_db
 from models import Recipe
 from models import Ingredient
 from models import Menu
+
+from auth import requires_auth
+from auth import has_permission
 
 load_dotenv()
 
@@ -58,7 +62,7 @@ def check_page(start, total_items):
             err_bad_request("Page set beyond end of list")
 
 
-@app.route('/recipe')
+@app.route("/recipe")
 def get_recipe_list():
     try:
         page, start, end = get_page()
@@ -82,7 +86,7 @@ def get_recipe_list():
         err_server_error(msg)
 
 
-@app.route('/recipe/<int:recipe_id>')
+@app.route("/recipe/<int:recipe_id>")
 def get_recipe(recipe_id):
     try:
         recipe = db.session.get(Recipe, recipe_id)
@@ -100,7 +104,8 @@ def get_recipe(recipe_id):
         err_server_error(msg)
 
 
-@app.route('/recipe', methods=("POST",))
+@app.route("/recipe", methods=("POST",))
+@requires_auth("add:recipe")
 def add_recipe():
     data = request.get_json()
     try:
@@ -149,13 +154,16 @@ def add_recipe():
         err_server_error(msg)
 
 
-@app.route('/recipe/<int:recipe_id>', methods=("PATCH",))
+@app.route("/recipe/<int:recipe_id>", methods=("PATCH",))
+@requires_auth("update:recipe")
 def update_recipe(recipe_id):
     data = request.get_json()
     try:
         recipe = db.session.get(Recipe, recipe_id)
         if not recipe:
             err_not_found(f"Recipe {recipe_id} not found")
+        if recipe.username != g.username and not has_permission("update:any-recipe"):
+            err_forbidden("Cannot update recipes of other users")
         if "name" in data:
             recipe.name = data["name"]
         if "servings" in data:
@@ -195,7 +203,8 @@ def update_recipe(recipe_id):
         err_server_error(msg)
 
 
-@app.route('/recipe/<int:recipe_id>', methods=("DELETE",))
+@app.route("/recipe/<int:recipe_id>", methods=("DELETE",))
+@requires_auth("delete:recipe")
 def delete_recipe(recipe_id):
     try:
         recipe = db.session.get(Recipe, recipe_id)
@@ -206,6 +215,8 @@ def delete_recipe(recipe_id):
                 f"Cannot delete recipe {recipe_id} "
                 "because it is used in menus"
             )
+        if recipe.username != g.username and not has_permission("delete:any-recipe"):
+            err_forbidden("Cannot delete recipes of other users")
         db.session.delete(recipe)
         db.session.commit()
         return success2(
@@ -220,7 +231,7 @@ def delete_recipe(recipe_id):
         err_server_error(msg)
 
 
-@app.route('/menu')
+@app.route("/menu")
 def get_menu_list():
     try:
         page, start, end = get_page()
@@ -244,7 +255,7 @@ def get_menu_list():
         err_server_error(msg)
 
 
-@app.route('/menu/<int:menu_id>')
+@app.route("/menu/<int:menu_id>")
 def get_menu(menu_id):
     try:
         menu = db.session.get(Menu, menu_id)
@@ -262,7 +273,8 @@ def get_menu(menu_id):
         err_server_error(msg)
 
 
-@app.route('/menu', methods=("POST",))
+@app.route("/menu", methods=("POST",))
+@requires_auth("add:menu")
 def add_menu():
     data = request.get_json()
     try:
@@ -298,13 +310,16 @@ def add_menu():
         err_server_error(msg)
 
 
-@app.route('/menu/<int:menu_id>', methods=("PATCH",))
+@app.route("/menu/<int:menu_id>", methods=("PATCH",))
+@requires_auth("update:menu")
 def update_menu(menu_id):
     data = request.get_json()
     try:
         menu = db.session.get(Menu, menu_id)
         if not menu:
             err_not_found(f"Menu {menu_id} not found")
+        if menu.username != g.username and not has_permission("update:any-menu"):
+            err_forbidden("Cannot update menus of other users")
         if "name" in data:
             menu.name = data["name"]
         if "dishes" in data:
@@ -330,12 +345,15 @@ def update_menu(menu_id):
         err_server_error(msg)
 
 
-@app.route('/menu/<int:menu_id>', methods=("DELETE",))
+@app.route("/menu/<int:menu_id>", methods=("DELETE",))
+@requires_auth("delete:menu")
 def delete_menu(menu_id):
     try:
         menu = db.session.get(Menu, menu_id)
         if not menu:
             err_not_found(f"Menu {menu_id} not found")
+        if menu.username != g.username and not has_permission("delete:any-menu"):
+            err_forbidden("Cannot delete menus of other users")
         db.session.delete(menu)
         db.session.commit()
         return success2(
