@@ -119,7 +119,7 @@ def add_recipe():
             err_bad_request("Field 'ingredients' is missing")
         recipe = Recipe(
             name=data["name"],
-            username="test@example.com", # TODO take from authentication
+            username=g.username,
             servings=data["servings"],
             preparation=data.get("preparation", "")
         )
@@ -284,7 +284,7 @@ def add_menu():
             err_bad_request("Field 'dishes' is missing")
         menu = Menu(
             name=data["name"],
-            username="test@example.com", # TODO take from authentication
+            username=g.username,
         )
         for idx, dish in enumerate(data["dishes"]):
             if "recipe_id" not in dish:
