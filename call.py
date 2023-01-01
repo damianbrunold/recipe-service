@@ -38,7 +38,7 @@ def configure():
         profile["token"] = token
     config["profiles"][config["current-profile"]] = profile
     with open(".call-config", "w") as outfile:
-        outfile.write(json.dumps(config))
+        outfile.write(json.dumps(config, indent=2))
 
 
 def set_profile():
@@ -47,7 +47,7 @@ def set_profile():
     if new_profile not in config["profiles"]:
         config["profiles"][new_profile] = {}
     with open(".call-config", "w") as outfile:
-        outfile.write(json.dumps(config))
+        outfile.write(json.dumps(config, indent=2))
 
 
 if __name__ == "__main__":
