@@ -16,7 +16,118 @@ The project was created as the capstone project of the Udacity Fullstack Web Dev
 
 ## Project set up
 
-...
+The project can be found on github at https://www.github.com/damianbrunold/recipe-service. It requires Python 3.10.
+The following instructions are targeted at linux and mac users. On windows, some commands look slightly differently.
+
+1. Clone the repository
+
+```
+git clone https://www.github.com/damianbrunold/recipe-service
+```
+
+2. Create a virtual environment and activate it
+
+```
+python -m venv venv
+. venv/bin/activate
+```
+
+3. Install the dependencies
+
+```
+pip install -f requirements.txt
+```
+
+4. Create a database
+5. Copy `.env-sample` to `.env` and adapt the database URL
+6. Set flask environment variables
+
+```
+export FLASK_APP=app
+export FLASK_DEBUG=true
+```
+
+7. Initialize the database
+
+```
+flask db upgrade
+```
+
+8. Run the flask application
+
+```
+flask run
+```
+
+Now you are ready to use the service. But in order to actually
+use it, you need a valid jwt token. For this, visit the URL
+
+```
+http://localhost:5000/connect
+```
+
+Click on `Get JWT Token`. You will be redirected to an Auth0-Login-Page.
+Log in with your user credentials (for test purposes, three test users
+are provided, see at end of this document). Upon successful authentication
+you will return to the local application and will see the jwt token.
+You can now use it to access the API. Be aware that the token expires
+after about one day.
+
+For your convenience, a simple command line client is provided for
+accessing the API. Follow these steps to configure and use this tool:
+
+```
+python call.py set-profile
+```
+
+Name the new profile, e.g. `recipe` for a user with the recipe permisssions.
+
+```
+python call.py configure
+```
+
+Enter the service URL (e.g. `http://localhost:5000`) and the jwt token.
+Now you are set to use the API.
+
+```
+python call.py
+```
+
+will print you all available commands.
+
+For example, the following call creates a simple recipe:
+
+```
+python call.py recipe add '{"name": "Dessert", "servings": 1, "ingredients": [{"name": "Chocolate", "amount": 1}]}'
+```
+
+```
+{
+  "id": 10,
+  "msg": "Added recipe with id 10",
+  "success": true
+}
+```
+
+If the user of the currently active profile does not have permission to add recipes, you
+will get an error message:
+
+```
+{
+  "error": 403,
+  "message": "{'code': 'forbidden', 'description': 'User does not have permission add:recipe'}",
+  "success": false
+}
+```
+
+If you want to work with different users (with e.g. differing permissions)
+you can create multiple profiles by calling `python call.py set-profile` and
+`python call.py configure` multiple times. Afterwards, you can switch between
+the profiles by calling `python call.py set-profile`.
+
+The command line client is also useful for accessing the deployed API. Just specify
+the remote URL in the configuration.
+
 
 ## API Reference
 
