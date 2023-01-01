@@ -75,6 +75,16 @@ def check_page(start, total_items):
             err_bad_request("Page set beyond end of list")
 
 
+@app.route("/")
+def get_index_infos():
+    """
+    The index route returns just a short informational text.
+
+    This endpoint is public, thus does not require authentication.
+    """
+    return "This is the base URL of the recipe service API."
+
+
 @app.route("/recipe")
 def get_recipe_list():
     """
