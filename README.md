@@ -497,3 +497,5 @@ User `recipe@recipe.dabr.ch` with password `test-recipe-1234` has permission to 
 User `menu@recipe.dabr.ch` with password `test-menu-1234` has permission to handle menus.
 
 User `admin@recipe.dabr.ch` with password `test-admin-1234` has full permissions.
+
+By visiting the URL https://recipe-service-dabr.herokuapp.com/connect you can get a valid jwt token for accessing the API.
