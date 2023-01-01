@@ -1,9 +1,7 @@
-import json
 import os
 from functools import wraps
 
 import jwt
-from jwt import PyJWKClient
 from flask import request
 from flask import g
 from flask import _request_ctx_stack
@@ -83,12 +81,11 @@ def check_permissions(permission, payload):
 '''
 def verify_decode_jwt(token):
     if os.environ.get("TEST", "") == "true":
-        payload = jwt.decode(token, "test", algorithms="HS256")
-        return payload
+        return jwt.decode(token, "test", algorithms=["HS256"])
     else:
         try:
-            url = f'https://{AUTH0_DOMAIN}/.well-known/jwks.json'
-            jwks_client = PyJWKClient(url)
+            url = f"https://{AUTH0_DOMAIN}/.well-known/jwks.json"
+            jwks_client = jwt.PyJWKClient(url)
             signing_key = jwks_client.get_signing_key_from_jwt(token)
             payload = jwt.decode(
                 token,

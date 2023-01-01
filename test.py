@@ -15,7 +15,7 @@ from auth import requires_auth
 
 
 def create_token(payload):
-    return jwt.encode(payload, key="test")
+    return jwt.encode(payload, key="test", algorithm="HS256")
 
 
 def create_token_recipe_user():
