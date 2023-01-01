@@ -10,7 +10,7 @@ There are different roles for managing permissions for recipes
 and for menus. In addition, an administrator role is provided. The authorization
 is handled by Auth0. The API is hosted on Heroku. The base URL is:
 
-https://....
+https://recipe-service-dabr.herokuapp.com
 
 The project was created as the capstone project of the Udacity Fullstack Web Developer Nanodegree.
 
