@@ -493,6 +493,13 @@ Sample result:
 }
 ```
 
+## Unit tests
+
+The file `test.py` contains unit tests. These unit tests run tests against all endpoints and check all 
+major functionality, including authorization. In order for these tests to run independently, each
+test case uses a freshly set up sqlite database and mocks the jwt-handling so that no actual auth0
+tokens nor any postgresql databse are needed in order to run the tests.
+
 
 ## Auth0 test users
 
