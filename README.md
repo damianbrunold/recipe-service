@@ -23,6 +23,7 @@ The following instructions are targeted at linux and mac users. On windows, some
 
 ```
 git clone https://www.github.com/damianbrunold/recipe-service
+cd recipe-service
 ```
 
 2. Create a virtual environment and activate it
@@ -35,7 +36,7 @@ python -m venv venv
 3. Install the dependencies
 
 ```
-pip install -f requirements.txt
+pip install -r requirements.txt
 ```
 
 4. Create a database
