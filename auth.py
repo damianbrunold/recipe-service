@@ -14,12 +14,13 @@ ALGORITHMS = os.environ.get("AUTH0_ALGORITHMS", "").split(",")
 API_AUDIENCE = os.environ.get("AUTH0_API_AUDIENCE")
 
 
-'''
-Extract token from request header.
-
-Raise AuthError if header missing, invalid type or token missing
-'''
 def get_token_auth_header():
+    '''
+    Extract token from request header.
+
+    Raise AuthError if header missing, invalid type or token missing
+    '''
+
     auth = request.headers.get('Authorization', None)
     if not auth:
         raise AuthError({
@@ -46,16 +47,17 @@ def get_token_auth_header():
     return token
 
 
-'''
-    @INPUTS
-        permission: string permission (i.e. 'post:drink')
-        payload: decoded jwt payload
-
-    it should raise an AuthError if permissions are not included in the payload
-    it should raise an AuthError if the requested permission string is not in the payload permissions array
-    return true otherwise
-'''
 def check_permissions(permission, payload):
+    '''
+        @INPUTS
+            permission: string permission (i.e. 'post:drink')
+            payload: decoded jwt payload
+
+        it should raise an AuthError if permissions are not included in the payload
+        it should raise an AuthError if the requested permission string is not in the payload permissions array
+        return true otherwise
+    '''
+
     if "permissions" not in payload:
         raise AuthError({
             'code': 'unauthorized',
@@ -69,17 +71,22 @@ def check_permissions(permission, payload):
     return True
 
 
-'''
-    @INPUTS
-        token: a json web token (string)
-
-    it should be an Auth0 token with key id (kid)
-    it should verify the token using Auth0 /.well-known/jwks.json
-    it should decode the payload from the token
-    it should validate the claims
-    return the decoded payload
-'''
 def verify_decode_jwt(token):
+    '''
+        @INPUTS
+            token: a json web token (string)
+
+        it should be an Auth0 token with key id (kid)
+        it should verify the token using Auth0 /.well-known/jwks.json
+        it should decode the payload from the token
+        it should validate the claims
+
+        for unit tests, it is possible to switch to a simple, mocked
+        jwt handling by setting the environment variable TEST to "true".
+
+        return the decoded payload
+    '''
+
     if os.environ.get("TEST", "") == "true":
         return jwt.decode(token, "test", algorithms=["HS256"])
     else:
@@ -119,16 +126,17 @@ def verify_decode_jwt(token):
             'description': 'Cannot decode token.'
         }, 400)
 
-'''
-    @INPUTS
-        permission: string permission (i.e. 'post:drink')
-
-    it should use the get_token_auth_header method to get the token
-    it should use the verify_decode_jwt method to decode the jwt
-    it should use the check_permissions method validate claims and check the requested permission
-    return the decorator which passes the decoded payload to the decorated method
-'''
 def requires_auth(permission=""):
+    '''
+        @INPUTS
+            permission: string permission (i.e. 'post:drink')
+
+        it should use the get_token_auth_header method to get the token
+        it should use the verify_decode_jwt method to decode the jwt
+        it should use the check_permissions method validate claims and check the requested permission
+        return the decorator which passes the decoded payload to the decorated method
+    '''
+
     def requires_auth_decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
@@ -142,6 +150,13 @@ def requires_auth(permission=""):
 
 
 def has_permission(permission):
+    """
+    Checks whether the current user has a permission.
+
+    This is similar to the decorator requires_auth, but
+    can be used within functions.
+    """
+    
     token = get_token_auth_header()
     payload = verify_decode_jwt(token)
     return permission in payload["permissions"]
